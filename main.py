@@ -159,6 +159,7 @@ class RateLimiter:
 engine: WappalyzerEngine | None = None
 cache = TTLCache(default_ttl=3600)
 rate_limiter = RateLimiter(requests_per_minute=300)
+demo_rate_limiter = RateLimiter(requests_per_minute=3)
 start_time = 0.0
 
 # ---------------------------------------------------------------------------
@@ -581,8 +582,15 @@ async def scan(request: ScanRequest, _: str = Depends(require_api_key)):
 
 
 @app.get("/demo-scan", tags=["Demo"])
-async def demo_scan(domain: str):
-    """Single-domain scan for the homepage demo (no API key required, rate limited)."""
+async def demo_scan(domain: str, request: Request):
+    """Single-domain scan for the homepage demo (no API key required, brutally rate limited)."""
+    client_ip = request.client.host if request.client else "unknown"
+    if not demo_rate_limiter.check(client_ip):
+        raise HTTPException(
+            status_code=429,
+            detail="Slow down — demo is limited to 3 scans per minute. Use the API with a key for more.",
+        )
+
     if engine is None:
         raise HTTPException(status_code=503, detail="Engine not initialized")
 
