@@ -22,6 +22,7 @@ from typing import Any
 
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
@@ -276,6 +277,197 @@ async def request_middleware(request: Request, call_next):
 # Endpoints
 # ---------------------------------------------------------------------------
 
+@app.get("/", response_class=HTMLResponse, tags=["System"])
+async def root():
+    """Public landing page with live demo."""
+    tech_count = 0
+    cat_count = 0
+    if engine:
+        tech_count = len(engine.technologies) + len(engine._conditional_techs)
+        cat_count = len(engine.categories)
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Made With — Tech Stack Detection API</title>
+<style>
+  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e5e5e5; min-height: 100vh; }}
+  a {{ color: #60a5fa; text-decoration: none; }}
+  a:hover {{ text-decoration: underline; }}
+
+  .container {{ max-width: 720px; margin: 0 auto; padding: 60px 24px; }}
+
+  h1 {{ font-size: 2.5rem; font-weight: 700; color: #fff; margin-bottom: 8px; }}
+  h1 span {{ color: #60a5fa; }}
+  .subtitle {{ font-size: 1.1rem; color: #888; margin-bottom: 48px; line-height: 1.5; }}
+
+  .stats {{ display: flex; gap: 32px; margin-bottom: 48px; }}
+  .stat {{ text-align: center; }}
+  .stat-num {{ font-size: 2rem; font-weight: 700; color: #60a5fa; }}
+  .stat-label {{ font-size: 0.8rem; color: #666; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }}
+
+  .demo {{ background: #141414; border: 1px solid #262626; border-radius: 12px; padding: 32px; margin-bottom: 48px; }}
+  .demo h2 {{ font-size: 1.1rem; color: #fff; margin-bottom: 16px; }}
+  .input-row {{ display: flex; gap: 12px; }}
+  .input-row input {{ flex: 1; padding: 12px 16px; background: #0a0a0a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 1rem; outline: none; transition: border-color 0.2s; }}
+  .input-row input:focus {{ border-color: #60a5fa; }}
+  .input-row input::placeholder {{ color: #555; }}
+  .input-row button {{ padding: 12px 24px; background: #60a5fa; color: #000; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s; white-space: nowrap; }}
+  .input-row button:hover {{ opacity: 0.85; }}
+  .input-row button:disabled {{ opacity: 0.5; cursor: not-allowed; }}
+
+  #results {{ margin-top: 20px; }}
+  .result-loading {{ color: #888; font-size: 0.9rem; padding: 16px 0; }}
+  .result-error {{ color: #f87171; font-size: 0.9rem; padding: 16px 0; }}
+  .result-meta {{ color: #666; font-size: 0.8rem; margin-bottom: 12px; }}
+
+  .tech-grid {{ display: flex; flex-wrap: wrap; gap: 8px; }}
+  .tech-tag {{ display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 6px; font-size: 0.85rem; color: #c5c5e0; transition: border-color 0.2s; }}
+  .tech-tag:hover {{ border-color: #60a5fa; }}
+  .tech-conf {{ font-size: 0.7rem; color: #60a5fa; font-weight: 600; }}
+  .tech-ver {{ font-size: 0.7rem; color: #888; }}
+  .tech-cat {{ font-size: 0.65rem; color: #555; display: block; margin-top: 2px; }}
+
+  .features {{ margin-bottom: 48px; }}
+  .features h2 {{ font-size: 1.3rem; color: #fff; margin-bottom: 20px; }}
+  .feature-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }}
+  .feature {{ background: #141414; border: 1px solid #262626; border-radius: 10px; padding: 20px; }}
+  .feature-title {{ font-size: 0.95rem; color: #fff; font-weight: 600; margin-bottom: 6px; }}
+  .feature-desc {{ font-size: 0.8rem; color: #777; line-height: 1.5; }}
+
+  .api-section {{ background: #141414; border: 1px solid #262626; border-radius: 12px; padding: 32px; margin-bottom: 48px; }}
+  .api-section h2 {{ font-size: 1.1rem; color: #fff; margin-bottom: 16px; }}
+  pre {{ background: #0a0a0a; border: 1px solid #262626; border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 0.8rem; line-height: 1.6; color: #a5b4c4; }}
+  .code-comment {{ color: #555; }}
+  .code-string {{ color: #a5d6a7; }}
+  .code-key {{ color: #90caf9; }}
+
+  footer {{ text-align: center; color: #444; font-size: 0.8rem; padding-top: 16px; border-top: 1px solid #1a1a1a; }}
+
+  @media (max-width: 600px) {{
+    .feature-grid {{ grid-template-columns: 1fr; }}
+    .stats {{ gap: 20px; }}
+    .input-row {{ flex-direction: column; }}
+    h1 {{ font-size: 2rem; }}
+  }}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Made <span>With</span></h1>
+  <p class="subtitle">Detect the tech stack behind any website. Powered by {tech_count:,}+ fingerprints, async parallelism, and zero external dependencies.</p>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-num">{tech_count:,}</div><div class="stat-label">Technologies</div></div>
+    <div class="stat"><div class="stat-num">{cat_count}</div><div class="stat-label">Categories</div></div>
+    <div class="stat"><div class="stat-num">5,000</div><div class="stat-label">Domains / Request</div></div>
+  </div>
+
+  <div class="demo">
+    <h2>Try it</h2>
+    <div class="input-row">
+      <input type="text" id="domain-input" placeholder="Enter a domain, e.g. stripe.com" autocomplete="off" spellcheck="false">
+      <button id="scan-btn" onclick="doScan()">Scan</button>
+    </div>
+    <div id="results"></div>
+  </div>
+
+  <div class="features">
+    <h2>Features</h2>
+    <div class="feature-grid">
+      <div class="feature">
+        <div class="feature-title">Bulk Scanning</div>
+        <div class="feature-desc">Submit up to 5,000 domains in one request. All scanned concurrently with configurable parallelism.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-title">Deep Detection</div>
+        <div class="feature-desc">Matches HTML, headers, cookies, meta tags, script sources, URL patterns, and page text.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-title">Version Extraction</div>
+        <div class="feature-desc">Resolves version numbers from regex capture groups — know exactly which version is running.</div>
+      </div>
+      <div class="feature">
+        <div class="feature-title">Zero Dependencies</div>
+        <div class="feature-desc">No Redis, no Postgres, no Celery. In-memory caching and rate limiting, ready to deploy anywhere.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="api-section">
+    <h2>Quick Start</h2>
+    <pre><span class="code-comment"># Scan a domain</span>
+curl -X POST {_request_url()}/scan \\
+  -H <span class="code-string">"X-API-Key: YOUR_KEY"</span> \\
+  -H <span class="code-string">"Content-Type: application/json"</span> \\
+  -d '<span class="code-string">{{"domains": ["github.com", "shopify.com"]}}</span>'</pre>
+  </div>
+
+  <footer>
+    <a href="/docs">API Docs</a> &nbsp;&middot;&nbsp;
+    <a href="https://github.com/MikeH1021/made-with">GitHub</a>
+  </footer>
+</div>
+
+<script>
+const input = document.getElementById('domain-input');
+const btn = document.getElementById('scan-btn');
+const results = document.getElementById('results');
+
+input.addEventListener('keydown', e => {{ if (e.key === 'Enter') doScan(); }});
+
+async function doScan() {{
+  const domain = input.value.trim();
+  if (!domain) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Scanning...';
+  results.innerHTML = '<div class="result-loading">Scanning ' + domain.replace(/</g,'&lt;') + '...</div>';
+
+  try {{
+    const resp = await fetch('/demo-scan?domain=' + encodeURIComponent(domain));
+    const data = await resp.json();
+
+    if (!resp.ok) {{
+      results.innerHTML = '<div class="result-error">' + (data.detail || 'Request failed') + '</div>';
+      return;
+    }}
+
+    const r = data;
+    if (r.status === 'error') {{
+      results.innerHTML = '<div class="result-error">Error: ' + (r.error || 'Unknown error') + '</div>';
+      return;
+    }}
+
+    let html = '<div class="result-meta">' + r.technology_count + ' technologies detected in ' + r.scan_duration_ms + 'ms</div>';
+    html += '<div class="tech-grid">';
+    for (const t of r.technologies) {{
+      const ver = t.version ? ' <span class="tech-ver">v' + t.version + '</span>' : '';
+      const cat = t.categories.length ? '<span class="tech-cat">' + t.categories[0].name + '</span>' : '';
+      html += '<div class="tech-tag"><span>' + t.name + ver + '</span><span class="tech-conf">' + t.confidence + '%</span></div>';
+    }}
+    html += '</div>';
+    results.innerHTML = html;
+  }} catch (err) {{
+    results.innerHTML = '<div class="result-error">Request failed: ' + err.message + '</div>';
+  }} finally {{
+    btn.disabled = false;
+    btn.textContent = 'Scan';
+  }}
+}}
+</script>
+</body>
+</html>"""
+
+
+def _request_url():
+    """Return the base URL for display in examples."""
+    return "https://madewith.mikehernandez.co"
+
+
 @app.get("/health", response_model=HealthResponse, tags=["System"])
 async def health(_: str = Depends(require_api_key)):
     """Health check with system stats."""
@@ -386,6 +578,27 @@ async def scan(request: ScanRequest, _: str = Depends(require_api_key)):
         duration_ms=total_ms,
         results=domain_results,
     )
+
+
+@app.get("/demo-scan", tags=["Demo"])
+async def demo_scan(domain: str):
+    """Single-domain scan for the homepage demo (no API key required, rate limited)."""
+    if engine is None:
+        raise HTTPException(status_code=503, detail="Engine not initialized")
+
+    normalized = normalize_domain(domain)
+    if not normalized:
+        raise HTTPException(status_code=400, detail="Invalid domain")
+
+    # Use the same cache
+    cached = cache.get(f"scan:{normalized}")
+    if cached is not None:
+        return {**cached, "cached": True}
+
+    raw_results = await scan_domains(
+        [normalized], engine, cache, max_concurrency=5, timeout=20,
+    )
+    return raw_results[0]
 
 
 # ---------------------------------------------------------------------------
